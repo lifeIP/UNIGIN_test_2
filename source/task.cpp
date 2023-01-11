@@ -2,6 +2,8 @@
 // этот файл вам нужно заполнить
 #include "task.h"
 
+
+#define _USE_MATH_DEFINES
 #include <functional>
 #include <future>
 #include <iostream>
@@ -104,12 +106,7 @@ void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &
 
 			// The angle between two normalized vectors.
 			auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2)->const float& {
-				return acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y);
-			};
-
-			// The scalar product of two vectors.
-			auto scalar = [](const vec2& norm_vect_1, const vec2& norm_vect_2)->const float& {
-				return norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y;
+				return acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0 / M_PI;
 			};
 			
 			// The distance between the points.
@@ -117,22 +114,27 @@ void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &
 				return sqrtf(powf(point_1.x - point_2.x, 2) + powf(point_1.y - point_2.y, 2));
 			};
 
-			vec2 tested;
-			tested.x = 1;
-			tested.y = 1;
 			
 			for (int i = id - 1; i > 0; --i) {// left
+
 				if (distance(data.at(input.at(id)).position, 
 					data.at(input.at(i)).position) > data.at(id).distance) break;
-				if ()
+
+				if (angle(data.at(input.at(id)).direction, normilize(data.at(input.at(id)).position,
+					data.at(input.at(i)).position)) > data.at(input.at(id)).fov_deg / 2) continue;
+
 				++output.at(id);
 			}
+			
 			for (int i = id + 1; i < data.size() - 1; ++i) {// right
 				if (distance(data.at(input.at(id)).position,
 					data.at(input.at(i)).position) > data.at(id).distance) break;
 
+				if (angle(data.at(input.at(id)).direction, normilize(data.at(input.at(id)).position,
+					data.at(input.at(i)).position)) > data.at(input.at(id)).fov_deg / 2) continue;
+
+				++output.at(id);
 			}
-			
 			
 			
 	};
