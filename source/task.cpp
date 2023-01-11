@@ -9,7 +9,7 @@
 #include <iostream>
 #include <algorithm>
 
-void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &result)
+void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& result)
 {
 	if (input_units.empty()) {
 		return;
@@ -18,7 +18,7 @@ void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &
 	std::vector<int> IDs;
 	IDs.reserve(input_units.size());
 	result.reserve(input_units.size());
-	
+
 	{
 		int i = 0;
 		int n = input_units.size();
@@ -32,8 +32,8 @@ void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &
 		for (; i < n; ++i) {
 			IDs.push_back(i);
 		}
-	}
-	auto fillResult = std::async(std::launch::async, [&]() {
+	} 
+	{
 		int i = 0;
 		int n = input_units.size();
 		for (; i < n - 4; i += 5) {
@@ -46,12 +46,10 @@ void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &
 		for (; i < n; ++i) {
 			result.push_back(0);
 		}
-	});
-
-
-	// Fast multithreaded sorting.
+	}
+	
 	std::function<void(const std::vector<unit>& input, std::vector<int>::iterator begin,
-		std::vector<int>::iterator end)> quick_sort;
+		std::vector<int>::iterator end)> quick_sort; // Fast multithreaded sorting.
 
 	quick_sort = [&quick_sort](const std::vector<unit>&input, std::vector<int>::iterator IDs_begin, 
 		std::vector<int>::iterator IDs_end)->void {
@@ -90,7 +88,7 @@ void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &
 		const std::vector<int>& input, std::vector<int>& output, const int id)->bool {
 
 			// Creating and normalizing a vector by 2 points.
-			auto normilize = [](const vec2& point_1, const vec2& point_2)->const vec2& {
+			auto normilize = [](const vec2& point_1, const vec2& point_2)->const vec2 {
 				vec2 res;
 
 				res.x = point_2.x - point_1.x;
@@ -105,43 +103,50 @@ void Task::checkVisible(const std::vector<unit> &input_units, std::vector<int> &
 			};
 
 			// The angle between two normalized vectors.
-			auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2)->const float& {
-				return acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0 / M_PI;
+			auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2)->const float {
+				float angle_res = (acos(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / M_PI;
+				return angle_res;
 			};
 			
 			// The distance between the points.
-			auto distance = [](const vec2& point_1, const vec2& point_2)->const float& {
-				return sqrtf(powf(point_1.x - point_2.x, 2) + powf(point_1.y - point_2.y, 2));
+			auto distance = [](const vec2& point_1, const vec2& point_2)->const float {
+				float distance_res = sqrtf(powf(point_1.x - point_2.x, 2) + powf(point_1.y - point_2.y, 2));
+				return distance_res;
 			};
 
 			
-			for (int i = id - 1; i > 0; --i) {// left
+			for (int i = id - 1; i >= 0; --i) {// left
 
 				if (distance(data.at(input.at(id)).position, 
-					data.at(input.at(i)).position) > data.at(id).distance) break;
+					data.at(input.at(i)).position) > data.at(input.at(id)).distance) break;
 
 				if (angle(data.at(input.at(id)).direction, normilize(data.at(input.at(id)).position,
 					data.at(input.at(i)).position)) > data.at(input.at(id)).fov_deg / 2) continue;
 
-				++output.at(id);
+				++output.at(input.at(id));
 			}
 			
-			for (int i = id + 1; i < data.size() - 1; ++i) {// right
+			for (int i = id + 1; i < data.size(); ++i) {// right
 				if (distance(data.at(input.at(id)).position,
-					data.at(input.at(i)).position) > data.at(id).distance) break;
+					data.at(input.at(i)).position) > data.at(input.at(id)).distance) break;
 
 				if (angle(data.at(input.at(id)).direction, normilize(data.at(input.at(id)).position,
 					data.at(input.at(i)).position)) > data.at(input.at(id)).fov_deg / 2) continue;
 
-				++output.at(id);
+				++output.at(input.at(id));
 			}
-			
-			
+			return true;
 	};
 
 	quick_sort(input_units, IDs.begin(), IDs.end());
 
+	auto left = std::async(std::launch::async, [&]() {
+		for (int i = 0; i <= input_units.size()/2; ++i) {
+			check_the_visibility_fields(input_units, IDs, result, i);
+		}
+	});
 
-	result = IDs;
-	
+	for (int i = input_units.size() / 2 + 1; i < input_units.size(); ++i) {
+		check_the_visibility_fields(input_units, IDs, result, i);
+	}
 }
