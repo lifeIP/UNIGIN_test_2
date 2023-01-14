@@ -2,19 +2,29 @@
 // этот файл вам нужно заполнить
 #include "task.h"
 
-
-#define _USE_MATH_DEFINES
 #include <functional>
-#include <future>
-#include <iostream>
+
+#include <thread>
+#include <mutex>
+
+#include <cmath>
 #include <algorithm>
+
 
 void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& result)
 {
+	
 	if (input_units.empty()) {
 		return;
 	}
 
+	if (input_units.size() == 1) {
+		result.push_back(0);
+		return;
+	}
+
+	float reference_point = -100000.0;
+	
 	std::vector<int> IDs;
 	IDs.reserve(input_units.size());
 	result.reserve(input_units.size());
@@ -32,7 +42,7 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 		for (; i < n; ++i) {
 			IDs.push_back(i);
 		}
-	} 
+	}
 	{
 		int i = 0;
 		int n = input_units.size();
@@ -51,9 +61,9 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 	std::function<void(const std::vector<unit>& input, std::vector<int>::iterator begin,
 		std::vector<int>::iterator end)> quick_sort; // Fast multithreaded sorting.
 
-	quick_sort = [&quick_sort](const std::vector<unit>&input, std::vector<int>::iterator IDs_begin, 
+	quick_sort = [&quick_sort, &reference_point](const std::vector<unit>& input, std::vector<int>::iterator IDs_begin,
 		std::vector<int>::iterator IDs_end)->void {
-			
+
 			auto const sz = IDs_end - IDs_begin;
 			if (sz <= 1) return;
 
@@ -61,92 +71,73 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			auto const pivot_v = *pivot;
 
 			std::swap(*pivot, *(IDs_end - 1));
-			
+
 			auto p = std::partition(IDs_begin, IDs_end, [&](const int a) {
-				return sqrtf(powf(input.at(a).position.x, 2) + powf(input.at(a).position.y, 2)) <
-					sqrtf(powf(input.at(pivot_v).position.x, 2) + powf(input.at(pivot_v).position.y, 2));
-			});
+				return sqrtf(powf(input.at(a).position.x - reference_point, 2) + powf(input.at(a).position.y - reference_point, 2)) <
+					sqrtf(powf(input.at(pivot_v).position.x - reference_point, 2) + powf(input.at(pivot_v).position.y - reference_point, 2));
+				});
 
 			std::swap(*p, *(IDs_end - 1));
 
-			if (sz > 10000) {
-				auto left = std::async(std::launch::async, [&]() {
+			if (sz > 100) {
+				std::thread thr([&]() {
 					return quick_sort(input, IDs_begin, p);
 					});
 				quick_sort(input, p + 1, IDs_end);
+				thr.join();
 			}
 			else {
 				quick_sort(input, IDs_begin, p);
 				quick_sort(input, p + 1, IDs_end);
 			}
 	};
-	
-	std::function<bool(const std::vector<unit>& data, const std::vector<int>& input_ID, 
-		std::vector<int>& output, const int id)> check_the_visibility_fields;
 
-	check_the_visibility_fields = [](const std::vector<unit>& data,
-		const std::vector<int>& input, std::vector<int>& output, const int id)->bool {
-
-			// Creating and normalizing a vector by 2 points.
-			auto normilize = [](const vec2& point_1, const vec2& point_2)->const vec2 {
-				vec2 res;
-
-				res.x = point_2.x - point_1.x;
-				res.y = point_2.y - point_1.y;
-	
-				float tmp = sqrtf(powf(res.x, 2) + powf(res.y, 2));
-
-				res.x = res.x / tmp;
-				res.y = res.y / tmp;
-
-				return res;
+	auto check_the_visibility_fields = [](const std::vector<unit>& data, const std::vector<int>& input_ID, std::vector<int>& output, const int id) {
+			
+			auto distance = [](const unit& A, const unit& B) {
+				float dist = sqrtf(powf(A.position.x - B.position.x, 2.0) + powf(A.position.y - float(B.position.y), 2.0));
+				return dist;
 			};
 
-			// The angle between two normalized vectors.
-			auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2)->const float {
-				float angle_res = (acos(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / M_PI;
+			auto normalization = [&distance](const unit& point_A, const unit& point_B) {
+				float dist = distance(point_A, point_B);
+				vec2 tmp;
+				tmp.x = (point_B.position.x - point_A.position.x) / dist;
+				tmp.y = (point_B.position.y - point_A.position.y) / dist;
+				return tmp;
+			};
+
+			auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2) {
+				float angle_res = (acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / 3.140;
 				return angle_res;
 			};
-			
-			// The distance between the points.
-			auto distance = [](const vec2& point_1, const vec2& point_2)->const float {
-				float distance_res = sqrtf(powf(point_1.x - point_2.x, 2) + powf(point_1.y - point_2.y, 2));
-				return distance_res;
+
+			auto scalar_product = [](const vec2& norm_vec_A, const vec2& norm_vec_B) {
+				float scalar = norm_vec_A.x * norm_vec_B.x + norm_vec_A.y * norm_vec_B.y;
+				return scalar;
 			};
 
 			
-			for (int i = id - 1; i >= 0; --i) {// left
+			
+			for (int i = 0; i < data.size(); ++i) {
+				if (i == id) continue;
 
-				if (distance(data.at(input.at(id)).position, 
-					data.at(input.at(i)).position) > data.at(input.at(id)).distance) break;
+				if (distance(data.at(input_ID.at(id)), data.at(input_ID.at(i))) >
+					data.at(input_ID.at(id)).distance) break;
+			
+				if (scalar_product(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) < 0) continue;
 
-				if (angle(data.at(input.at(id)).direction, normilize(data.at(input.at(id)).position,
-					data.at(input.at(i)).position)) > data.at(input.at(id)).fov_deg / 2) continue;
+				if (angle(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) >
+					data.at(input_ID.at(id)).fov_deg / 2.0) continue;
 
-				++output.at(input.at(id));
+				++output.at(input_ID.at(id));
 			}
 			
-			for (int i = id + 1; i < data.size(); ++i) {// right
-				if (distance(data.at(input.at(id)).position,
-					data.at(input.at(i)).position) > data.at(input.at(id)).distance) break;
-
-				if (angle(data.at(input.at(id)).direction, normilize(data.at(input.at(id)).position,
-					data.at(input.at(i)).position)) > data.at(input.at(id)).fov_deg / 2) continue;
-
-				++output.at(input.at(id));
-			}
-			return true;
 	};
-
+	
 	quick_sort(input_units, IDs.begin(), IDs.end());
 
-	auto left = std::async(std::launch::async, [&]() {
-		for (int i = 0; i <= input_units.size()/2; ++i) {
-			check_the_visibility_fields(input_units, IDs, result, i);
-		}
-	});
-
-	for (int i = input_units.size() / 2 + 1; i < input_units.size(); ++i) {
+	for (int i = 0; i < input_units.size(); ++i) {
 		check_the_visibility_fields(input_units, IDs, result, i);
 	}
 }

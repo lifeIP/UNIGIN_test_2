@@ -46,6 +46,5 @@ int main()
 		}
 		out.close();
 	}
-
 	return 0;
 }
