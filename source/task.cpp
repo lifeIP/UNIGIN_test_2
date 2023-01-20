@@ -1,5 +1,7 @@
 // this file you need to fill
 // этот файл вам нужно заполнить
+#define _USE_MATH_DEFINES
+
 #include "task.h"
 
 #include <functional>
@@ -13,7 +15,7 @@
 
 void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& result)
 {
-	
+
 	if (input_units.empty()) {
 		return;
 	}
@@ -23,12 +25,11 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 		return;
 	}
 
-	float reference_point = -100000.0;
-	
-	std::vector<int> IDs;
-	IDs.reserve(input_units.size());
-	result.reserve(input_units.size());
+	vec2 reference_point;
+	reference_point.x = -100000.0;
+	reference_point.y = -100000.0;
 
+	std::vector<int> IDs;
 	{
 		int i = 0;
 		int n = input_units.size();
@@ -41,20 +42,6 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 		}
 		for (; i < n; ++i) {
 			IDs.push_back(i);
-		}
-	}
-	{
-		int i = 0;
-		int n = input_units.size();
-		for (; i < n - 4; i += 5) {
-			result.push_back(0);
-			result.push_back(0);
-			result.push_back(0);
-			result.push_back(0);
-			result.push_back(0);
-		}
-		for (; i < n; ++i) {
-			result.push_back(0);
 		}
 	}
 	
@@ -73,13 +60,13 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			std::swap(*pivot, *(IDs_end - 1));
 
 			auto p = std::partition(IDs_begin, IDs_end, [&](const int a) {
-				return sqrtf(powf(input.at(a).position.x - reference_point, 2) + powf(input.at(a).position.y - reference_point, 2)) <
-					sqrtf(powf(input.at(pivot_v).position.x - reference_point, 2) + powf(input.at(pivot_v).position.y - reference_point, 2));
+				return (reference_point.x - input.at(a).position.x) + (reference_point.y - input.at(a).position.y) >
+					(reference_point.x - input.at(pivot_v).position.x) + (reference_point.y - input.at(pivot_v).position.y);
 				});
 
 			std::swap(*p, *(IDs_end - 1));
 
-			if (sz > 100) {
+			if (sz > 1000) {
 				std::thread thr([&]() {
 					return quick_sort(input, IDs_begin, p);
 					});
@@ -92,52 +79,87 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			}
 	};
 
-	auto check_the_visibility_fields = [](const std::vector<unit>& data, const std::vector<int>& input_ID, std::vector<int>& output, const int id) {
-			
-			auto distance = [](const unit& A, const unit& B) {
-				float dist = sqrtf(powf(A.position.x - B.position.x, 2.0) + powf(A.position.y - float(B.position.y), 2.0));
-				return dist;
-			};
+	auto check_the_visibility_fields = [&](const std::vector<unit>& data, const std::vector<int>& input_ID, std::vector<int>& output, const int id) {
 
-			auto normalization = [&distance](const unit& point_A, const unit& point_B) {
-				float dist = distance(point_A, point_B);
-				vec2 tmp;
-				tmp.x = (point_B.position.x - point_A.position.x) / dist;
-				tmp.y = (point_B.position.y - point_A.position.y) / dist;
-				return tmp;
-			};
+		auto distance = [](const unit& A, const vec2& B) {
+			float dist = sqrtf(powf(A.position.x - B.x, 2.0) + powf(A.position.y - float(B.y), 2.0));
+			return dist;
+		};
 
-			auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2) {
-				float angle_res = (acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / 3.140;
-				return angle_res;
-			};
+		auto normalization = [&distance](const unit& point_A, const unit& point_B) {
+			float dist = distance(point_A, point_B.position);
+			vec2 tmp;
+			tmp.x = (point_B.position.x - point_A.position.x) / dist;
+			tmp.y = (point_B.position.y - point_A.position.y) / dist;
+			return tmp;
+		};
 
-			auto scalar_product = [](const vec2& norm_vec_A, const vec2& norm_vec_B) {
-				float scalar = norm_vec_A.x * norm_vec_B.x + norm_vec_A.y * norm_vec_B.y;
-				return scalar;
-			};
+		auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2) {
+			float angle_res = (acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / M_PI;
+			return angle_res;
+		};
 
-			
-			
-			for (int i = 0; i < data.size(); ++i) {
-				if (i == id) continue;
+		auto scalar_product = [](const vec2& norm_vec_A, const vec2& norm_vec_B) {
+			float scalar = norm_vec_A.x * norm_vec_B.x + norm_vec_A.y * norm_vec_B.y;
+			return scalar;
+		};
 
-				if (distance(data.at(input_ID.at(id)), data.at(input_ID.at(i))) >
-					data.at(input_ID.at(id)).distance) break;
-			
-				if (scalar_product(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) < 0) continue;
 
-				if (angle(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) >
-					data.at(input_ID.at(id)).fov_deg / 2.0) continue;
 
-				++output.at(input_ID.at(id));
-			}
-			
+		for (int i = 0; i < data.size(); ++i) {
+			if (i == id) continue;
+
+			if (distance(data.at(input_ID.at(id)), reference_point) + data.at(input_ID.at(id)).distance <
+				distance(data.at(input_ID.at(i)), reference_point)) break;
+
+			if (distance(data.at(input_ID.at(id)), data.at(input_ID.at(i)).position) >
+				data.at(input_ID.at(id)).distance) continue;
+
+			if (scalar_product(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) < 0) continue;
+
+			if (angle(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) >
+				data.at(input_ID.at(id)).fov_deg / 2.0) continue;
+
+			++output.at(input_ID.at(id));
+		}
+
 	};
-	
-	quick_sort(input_units, IDs.begin(), IDs.end());
 
-	for (int i = 0; i < input_units.size(); ++i) {
-		check_the_visibility_fields(input_units, IDs, result, i);
-	}
+	std::function<void(const int start, const int end, const int recursion_depth)> running_parallel_computing;
+
+	running_parallel_computing = [&](const int start, const int end, const int recursion_depth) {
+		if (end - start >= 4 && recursion_depth > 2) {
+			std::thread thr([&]() {running_parallel_computing(start, end / 2, recursion_depth - 2);
+			return; });
+			running_parallel_computing(end / 2 + 1, end, recursion_depth - 2);
+			thr.join();
+		}
+		else
+		{
+			for (int i = start; i <= end; ++i) {
+				check_the_visibility_fields(input_units, IDs, result, i);
+			}
+		}
+	};
+
+	std::thread thr([&]()
+		{
+			int i = 0;
+			int n = input_units.size();
+			for (; i < n - 4; i += 5) {
+				result.push_back(0);
+				result.push_back(0);
+				result.push_back(0);
+				result.push_back(0);
+				result.push_back(0);
+			}
+			for (; i < n; ++i) {
+				result.push_back(0);
+			}
+		}
+	);
+
+	quick_sort(input_units, IDs.begin(), IDs.end());
+	thr.join();
+	running_parallel_computing(0, input_units.size() - 1, 6);
 }
