@@ -87,12 +87,25 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			return scalar;
 		};
 
+		vec2 reference_point;
+		reference_point.x = -100000;
+		reference_point.y = -100000;
+
+		int counter(0);
 
 		for (int i = id - 1; i >= 0; --i) {
-					
-			float dist = distance(data.at(input_ID.at(id)), data.at(input_ID.at(i)).position);
 			
-			if (dist > data.at(input_ID.at(id)).distance) continue;
+			
+
+			float dist = distance(data.at(input_ID.at(id)), data.at(input_ID.at(i)).position);
+
+			if (dist > data.at(input_ID.at(id)).distance) { 
+				if (data.at(input_ID.at(id)).position.x + data.at(input_ID.at(id)).distance > data.at(input_ID.at(i)).position.y ||
+					data.at(input_ID.at(id)).position.y + data.at(input_ID.at(id)).distance > data.at(input_ID.at(i)).position.x) {
+					break;
+				}
+				continue; 
+			}
 
 			vec2 norm;
 
@@ -110,11 +123,20 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			++output.at(input_ID.at(id));
 		}
 
+		counter = 0;
+
 		for (int i = id + 1; i < data.size(); ++i) {
+			
 
 			float dist = distance(data.at(input_ID.at(id)), data.at(input_ID.at(i)).position);
 
-			if (dist > data.at(input_ID.at(id)).distance) continue;
+			if (dist > data.at(input_ID.at(id)).distance) {
+				if (data.at(input_ID.at(id)).position.x + data.at(input_ID.at(id)).distance > data.at(input_ID.at(i)).position.y ||
+					data.at(input_ID.at(id)).position.y + data.at(input_ID.at(id)).distance > data.at(input_ID.at(i)).position.x) {
+					break;
+				}
+				continue;
+			}
 
 			vec2 norm;
 
