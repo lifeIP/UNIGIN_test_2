@@ -86,21 +86,27 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			return dist;
 		};
 
-		auto normalization = [&distance](const unit& point_A, const unit& point_B) {
+		auto normalization = [&distance](const unit& point_A, const unit& point_B, bool& flag) {
 			float dist = distance(point_A, point_B.position);
 			vec2 tmp;
+			if (dist > point_A.distance) { 
+				flag = true; 
+				return tmp;
+			}
+			
+			
 			tmp.x = (point_B.position.x - point_A.position.x) / dist;
 			tmp.y = (point_B.position.y - point_A.position.y) / dist;
 			return tmp;
 		};
 
-		auto scalar_product = [](const vec2& norm_vec_A, const vec2& norm_vec_B) {
-			float scalar = norm_vec_A.x * norm_vec_B.x + norm_vec_A.y * norm_vec_B.y;
-			return scalar;
-		};
-
-		auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2) {
-			float angle_res = (acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / M_PI;
+		auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2, bool& flag) {
+			float product = norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y;
+			if (product < 0) {
+				flag = true;
+				return 0.0f;
+			}
+			float angle_res = (acosf(product) * 180.0) / M_PI;
 			return angle_res;
 		};
 
@@ -110,15 +116,18 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			if (distance(data.at(input_ID.at(id)), reference_point) + data.at(input_ID.at(id)).distance <
 				distance(data.at(input_ID.at(i)), reference_point)) break;
 
-			if (distance(data.at(input_ID.at(id)), data.at(input_ID.at(i)).position) >
-				data.at(input_ID.at(id)).distance) continue;
-
-			vec2 norm = normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)));
+			bool flag(0);
+			vec2 norm = normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)), flag);
 			
-			if (scalar_product(data.at(input_ID.at(id)).direction, norm) < 0) continue;
-
-			if (angle(data.at(input_ID.at(id)).direction, norm) >
+			if (flag)continue;
+			
+			flag = 0;
+			
+			if (angle(data.at(input_ID.at(id)).direction, norm, flag) >
 				data.at(input_ID.at(id)).fov_deg / 2.0) continue;
+
+			if (flag)continue;
+
 
 			++output.at(input_ID.at(id));
 		}
@@ -128,7 +137,7 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 	std::function<void(const int start, const int end, const int recursion_depth)> running_parallel_computing;
 
 	running_parallel_computing = [&](const int start, const int end, const int recursion_depth) {
-		if (end - start >= 4 && recursion_depth > 2) {
+		if (end - start >= 4 && recursion_depth >= 2) {
 			std::thread thr([&]() {running_parallel_computing(start, end / 2, recursion_depth - 2);
 			return; });
 			running_parallel_computing(end / 2 + 1, end, recursion_depth - 2);
