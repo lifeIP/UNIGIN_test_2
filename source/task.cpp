@@ -60,13 +60,13 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			std::swap(*pivot, *(IDs_end - 1));
 
 			auto p = std::partition(IDs_begin, IDs_end, [&](const int a) {
-				return (reference_point.x - input.at(a).position.x) + (reference_point.y - input.at(a).position.y) >
-					(reference_point.x - input.at(pivot_v).position.x) + (reference_point.y - input.at(pivot_v).position.y);
+				return (input.at(a).position.x + input.at(a).position.y) <
+					(input.at(pivot_v).position.x + input.at(pivot_v).position.y);
 				});
 
 			std::swap(*p, *(IDs_end - 1));
 
-			if (sz > 1000) {
+			if (sz > 512) {
 				std::thread thr([&]() {
 					return quick_sort(input, IDs_begin, p);
 					});
@@ -94,17 +94,15 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			return tmp;
 		};
 
-		auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2) {
-			float angle_res = (acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / M_PI;
-			return angle_res;
-		};
-
 		auto scalar_product = [](const vec2& norm_vec_A, const vec2& norm_vec_B) {
 			float scalar = norm_vec_A.x * norm_vec_B.x + norm_vec_A.y * norm_vec_B.y;
 			return scalar;
 		};
 
-
+		auto angle = [](const vec2& norm_vect_1, const vec2& norm_vect_2) {
+			float angle_res = (acosf(norm_vect_1.x * norm_vect_2.x + norm_vect_1.y * norm_vect_2.y) * 180.0) / M_PI;
+			return angle_res;
+		};
 
 		for (int i = 0; i < data.size(); ++i) {
 			if (i == id) continue;
@@ -115,9 +113,11 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			if (distance(data.at(input_ID.at(id)), data.at(input_ID.at(i)).position) >
 				data.at(input_ID.at(id)).distance) continue;
 
-			if (scalar_product(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) < 0) continue;
+			vec2 norm = normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)));
+			
+			if (scalar_product(data.at(input_ID.at(id)).direction, norm) < 0) continue;
 
-			if (angle(data.at(input_ID.at(id)).direction, normalization(data.at(input_ID.at(id)), data.at(input_ID.at(i)))) >
+			if (angle(data.at(input_ID.at(id)).direction, norm) >
 				data.at(input_ID.at(id)).fov_deg / 2.0) continue;
 
 			++output.at(input_ID.at(id));
