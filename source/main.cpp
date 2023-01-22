@@ -41,6 +41,7 @@ int main()
 	if (out.is_open())
 	{
 		for (int i = 0; i < count; i++) {
+			//std::cout << units.at(result.at(i)).position.x << "\t" << units.at(result.at(i)).position.y << std::endl;
 			std::cout << result.at(i) << std::endl;
 			out << result.at(i) << std::endl;
 		}
