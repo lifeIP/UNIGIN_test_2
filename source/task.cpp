@@ -5,12 +5,8 @@
 #include "task.h"
 
 #include <functional>
-
 #include <thread>
-#include <mutex>
-
 #include <cmath>
-#include <algorithm>
 
 
 void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& result)
@@ -24,84 +20,64 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 		result.push_back(0);
 		return;
 	}
-
-	/*{
-		int i = 0;
-		int n = input_units.size();
-		for (; i < n - 4; i += 5) {
-			result.push_back(0);
-			result.push_back(0);
-			result.push_back(0);
-			result.push_back(0);
-			result.push_back(0);
-		}
-		for (; i < n; ++i) {
-			result.push_back(0);
-		}
-	}*/
 	
 	for (int i = 0; i < input_units.size(); ++i) {
 		result.push_back(0);
 	}
-
-
 	
-	auto check_the_visibility_fields = [&](const std::vector<unit>& data, std::vector<int>& output, const int id) {
+	// Filling in the vector "output" using data from the vector "data" for the element "id".
+	auto check_the_visibility_fields = [&](const std::vector<unit>& data, std::vector<int>& output, const int& id)
+	{
+		const unit dir_id(data.at(id));
 
-			auto distance = [](const unit& A, const vec2& B) {
-				float dist = sqrtf(powf(A.position.x - B.x, 2.0) + powf(A.position.y - B.y, 2.0));
-				return dist;
-			};
+		for (int i = id - 1; i >= 0; --i) {
+			
+			float difference_x = data.at(i).position.x - dir_id.position.x;
+			float difference_y = data.at(i).position.y - dir_id.position.y;
 
-			for (int i = id - 1; i >= 0; --i) {
-				if (data.at(id).position.x + data.at(id).distance < data.at(id).position.x ||
-					data.at(id).position.x - data.at(id).distance > data.at(id).position.x ||
-					data.at(id).position.y + data.at(id).distance < data.at(id).position.y ||
-					data.at(id).position.y - data.at(id).distance > data.at(id).position.y
-					) continue;
+			float dist = powf(difference_x, 2.0) + powf(difference_y, 2.0);
+			
+			if (dist > powf(data.at(id).distance, 2.0)) continue;
 
-				float dist = distance(data.at(id), data.at(i).position);
+			dist = sqrtf(dist);
 
-				if (dist > data.at(id).distance) continue;
+			float product = dir_id.direction.x * (difference_x) / dist +
+				dir_id.direction.y * (difference_y) / dist;
 
-				float product = data.at(id).direction.x * (data.at(i).position.x - data.at(id).position.x) / dist + 
-					data.at(id).direction.y * (data.at(i).position.y - data.at(id).position.y) / dist;
-		
-				if (product < 0) continue;
+			if (product < 0) continue;
 
-				float angle_res = (acosf(product) * 180.0) / M_PI;
+			float angle_res = acos(product) * 180.0 / M_PI;
 
-				if (angle_res > data.at(id).fov_deg / 2.0) continue;
+			if (angle_res > dir_id.fov_deg / 2.0) continue;
 
-				++output.at(id);
-			}
+			++output.at(id);
+		}
 
-			for (int i = id + 1; i < data.size(); ++i) {
+		for (int i = id + 1; i < data.size(); ++i) {
 
-				if (data.at(id).position.x + data.at(id).distance < data.at(id).position.x ||
-					data.at(id).position.x - data.at(id).distance > data.at(id).position.x ||
-					data.at(id).position.y + data.at(id).distance < data.at(id).position.y ||
-					data.at(id).position.y - data.at(id).distance > data.at(id).position.y
-					) continue;
+			float difference_x = data.at(i).position.x - dir_id.position.x;
+			float difference_y = data.at(i).position.y - dir_id.position.y;
 
-				float dist = distance(data.at(id), data.at(i).position);
+			float dist = powf(difference_x, 2.0) + powf(difference_y, 2.0);
 
-				if (dist > data.at(id).distance) continue;
+			if (dist > powf(data.at(id).distance, 2.0)) continue;
 
-				float product = data.at(id).direction.x * (data.at(i).position.x - data.at(id).position.x) / dist +
-					data.at(id).direction.y * (data.at(i).position.y - data.at(id).position.y) / dist;
+			dist = sqrtf(dist);
 
-				if (product < 0) continue;
+			float product = dir_id.direction.x * (difference_x) / dist +
+				dir_id.direction.y * (difference_y) / dist;
 
-				float angle_res = (acosf(product) * 180.0) / M_PI;
+			if (product < 0) continue;
 
-				if (angle_res > data.at(id).fov_deg / 2.0) continue;
+			float angle_res = acos(product) * 180.0 / M_PI;
 
-				++output.at(id);
-			}
+			if (angle_res > dir_id.fov_deg / 2.0) continue;
+
+			++output.at(id);
+		}
 
 	};
-	
+
 	std::function<void(const int start, const int end, const int recursion_depth)> running_parallel_computing;
 
 	running_parallel_computing = [&](const int start, const int end, const int recursion_depth) {
@@ -119,5 +95,5 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 		}
 	};
 
-	running_parallel_computing(0, input_units.size() - 1, 8);
+	running_parallel_computing(0, input_units.size() - 1, 2);
 }
