@@ -56,14 +56,12 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 			std::swap(*pivot, *(IDs_end - 1));
 
 			auto p = std::partition(IDs_begin, IDs_end, [&](const int a) {
-				return input.at(a).position.x < input.at(pivot_v).position.x ||
-					(input.at(a).position.x == input.at(pivot_v).position.x &&
-						input.at(a).position.y < input.at(pivot_v).position.y);
+				return input.at(a).position.x < input.at(pivot_v).position.x;
 				});
 
 			std::swap(*p, *(IDs_end - 1));
 
-			if (sz > 512) {
+			if (sz > 1024) {
 				std::thread thr([&]() {
 					return quick_sort(input, IDs_begin, p);
 					});
@@ -80,28 +78,24 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 	auto check_the_visibility_fields = [&](const std::vector<unit>& data, const std::vector<int>& input_ID, std::vector<int>& output, const int id)
 	{
 		const unit dir_id(data.at(input_ID.at(id)));
+		const float angle(cos(dir_id.fov_deg * 0.00872664625972f));
+		const float distance2 = powf(dir_id.distance, 2.0);
 
 		for (int i = id - 1; i >= 0; --i) {
 
 			if (dir_id.position.x - dir_id.distance > data.at(input_ID.at(i)).position.x) break;
-			
+
 			float difference_x = data.at(input_ID.at(i)).position.x - dir_id.position.x;
 			float difference_y = data.at(input_ID.at(i)).position.y - dir_id.position.y;
 
 			float dist = powf(difference_x, 2.0) + powf(difference_y, 2.0);
 
-			if (dist > powf(dir_id.distance, 2.0)) continue;
+			if (dist > distance2) continue;
 
-			dist = sqrtf(dist);
+			float product = (dir_id.direction.x * difference_x +
+				dir_id.direction.y * difference_y) / sqrtf(dist);
 
-			float product = dir_id.direction.x * (difference_x) / dist +
-				dir_id.direction.y * (difference_y) / dist;
-
-			if (product < 0) continue;
-
-			float angle_res = acos(product) * 180.0 / M_PI;
-
-			if (angle_res > dir_id.fov_deg / 2.0) continue;
+			if (product < 0 || product < angle) continue;
 
 			++output.at(input_ID.at(id));
 		}
@@ -115,18 +109,12 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 
 			float dist = powf(difference_x, 2.0) + powf(difference_y, 2.0);
 
-			if (dist > powf(dir_id.distance, 2.0)) continue;
+			if (dist > distance2) continue;
 
-			dist = sqrtf(dist);
+			float product = (dir_id.direction.x * difference_x +
+				dir_id.direction.y * difference_y) / sqrtf(dist);
 
-			float product = dir_id.direction.x * (difference_x) / dist +
-				dir_id.direction.y * (difference_y) / dist;
-
-			if (product < 0) continue;
-
-			float angle_res = acos(product) * 180.0 / M_PI;
-
-			if (angle_res > dir_id.fov_deg / 2.0) continue;
+			if (product < 0 || product < angle) continue;
 
 			++output.at(input_ID.at(id));
 		}
