@@ -25,20 +25,10 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 	for (int i = 0; i < input_units.size(); ++i) {
 		result.push_back(0);
 	}
+	
 	std::vector<int> IDs;
-	{
-		int i = 0;
-		int n = input_units.size();
-		for (; i < n - 4; i += 5) {
-			IDs.push_back(i);
-			IDs.push_back(i + 1);
-			IDs.push_back(i + 2);
-			IDs.push_back(i + 3);
-			IDs.push_back(i + 4);
-		}
-		for (; i < n; ++i) {
-			IDs.push_back(i);
-		}
+	for (int i = 0; i < input_units.size(); ++i) {
+		IDs.push_back(i);
 	}
 
 	std::function<void(const std::vector<unit>& input, std::vector<int>::iterator begin,
@@ -75,53 +65,49 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 	};
 
 	// Filling in the vector "output" using data from the vector "data" for the element "id".
-	auto check_the_visibility_fields = [&](const std::vector<unit>& data, const std::vector<int>& input_ID, std::vector<int>& output, const int id)
+	auto check_the_visibility_fields = [&](const std::vector<unit>& data, const std::vector<int>& input_ID, std::vector<int>& output, const int &id)
 	{
 		const unit dir_id(data.at(input_ID.at(id)));
 		const float angle(cos(dir_id.fov_deg * 0.00872664625972f));
 		const float distance2 = powf(dir_id.distance, 2.0);
 
+		const float pos_plus_dist_x = dir_id.position.x + dir_id.distance;
+		const float pos_min_dist_x = dir_id.position.x - dir_id.distance;
+
+
 		for (int i = id - 1; i >= 0; --i) {
 
-			if (dir_id.position.x - dir_id.distance > data.at(input_ID.at(i)).position.x) break;
+			if (pos_min_dist_x > data.at(input_ID.at(i)).position.x) break;
 
 			float difference_x = data.at(input_ID.at(i)).position.x - dir_id.position.x;
 			float difference_y = data.at(input_ID.at(i)).position.y - dir_id.position.y;
 
 			float dist = powf(difference_x, 2.0) + powf(difference_y, 2.0);
 
-			if (dist > distance2) continue;
-
-			float product = (dir_id.direction.x * difference_x +
-				dir_id.direction.y * difference_y) / sqrtf(dist);
-
-			if (product < 0 || product < angle) continue;
+			if (dist > distance2 || (dir_id.direction.x * difference_x + 
+				dir_id.direction.y * difference_y) / sqrtf(dist) < angle) continue;
 
 			++output.at(input_ID.at(id));
 		}
 
 		for (int i = id + 1; i < data.size(); ++i) {
 
-			if (dir_id.position.x + dir_id.distance < data.at(input_ID.at(i)).position.x) break;
+			if (pos_plus_dist_x < data.at(input_ID.at(i)).position.x) break;
 
 			float difference_x = data.at(input_ID.at(i)).position.x - dir_id.position.x;
 			float difference_y = data.at(input_ID.at(i)).position.y - dir_id.position.y;
 
 			float dist = powf(difference_x, 2.0) + powf(difference_y, 2.0);
 
-			if (dist > distance2) continue;
-
-			float product = (dir_id.direction.x * difference_x +
-				dir_id.direction.y * difference_y) / sqrtf(dist);
-
-			if (product < 0 || product < angle) continue;
+			if (dist > distance2 || (dir_id.direction.x * difference_x +
+				dir_id.direction.y * difference_y) / sqrtf(dist) < angle) continue;
 
 			++output.at(input_ID.at(id));
 		}
 
 	};
 
-	std::function<void(const int start, const int end, const int recursion_depth)> running_parallel_computing;
+	std::function<void(const int &start, const int &end, const int &recursion_depth)> running_parallel_computing;
 
 	running_parallel_computing = [&](const int start, const int end, const int recursion_depth) {
 		if (end - start >= 4 && recursion_depth >= 2) {
