@@ -1,5 +1,5 @@
 // this file you need to fill
-// СЌС‚РѕС‚ С„Р°Р№Р» РІР°Рј РЅСѓР¶РЅРѕ Р·Р°РїРѕР»РЅРёС‚СЊ
+// этот файл вам нужно заполнить
 
 
 #define _USE_MATH_DEFINES
@@ -12,7 +12,9 @@
 #include <intrin.h>
 #elif defined(__GNUC__) && (defined(__x86_64__) || defined(__i386__))
 	 /* GCC-compatible compiler, targeting x86/x86-64 */
-#include <x86intrin.h>
+//#include <x86intrin.h>
+#pragma GCC target("avx2")
+#pragma GCC optimize("O3")
 #endif
 
 #include <algorithm>
@@ -35,12 +37,10 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 	}
 
 	result = std::vector<int>(input_units.size());
-	for (int i = 0; i < input_units.size(); ++i) {
-		result.at(0) = 0;
-	}
 
 	//The array in which the ids of the elements of the sorted array will be stored.
 	std::vector<int> IDs(input_units.size());
+	#pragma loop(hint_parallel(4))
 	for (int i = 0; i < input_units.size(); ++i) {
 		IDs.at(i) = i;
 	}
