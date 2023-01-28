@@ -33,24 +33,20 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 		IDs.at(i) = i;
 	}
 
-	// Filling in the vector "output" using data from the vector "data" for the element "id".
 	auto check_the_visibility_fields = [&](const int& id)
 	{
 		const unit dir_id(input_units.at(IDs.at(id)));
 		const float angle(powf(cos(dir_id.fov_deg * 0.008726646f), 2.0));
 		const float distance2 = powf(dir_id.distance, 2.0);
 
-		const float pos_plus_dist_x = dir_id.position.x + dir_id.distance;
-		const float pos_min_dist_x = dir_id.position.x - dir_id.distance;
-
 		int count = 0;
 		// Processing of array data located to the left of the element with the number "id".
-
 		for (int i = id - 1; i >= 0; --i) {
 
-			if (pos_min_dist_x > input_units.at(IDs.at(i)).position.x) break;
-
 			float difference_x = input_units.at(IDs.at(i)).position.x - dir_id.position.x;
+
+			if (-dir_id.distance > difference_x) break;
+
 			float difference_y = input_units.at(IDs.at(i)).position.y - dir_id.position.y;
 
 			float norm = dir_id.direction.x * difference_x + dir_id.direction.y * difference_y;
@@ -66,9 +62,10 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 		//Processing of array data located to the right of the element with the number "id".
 		for (int i = id + 1; i < input_units.size(); ++i) {
 
-			if (pos_plus_dist_x < input_units.at(IDs.at(i)).position.x) break;
-
 			float difference_x = input_units.at(IDs.at(i)).position.x - dir_id.position.x;
+
+			if (dir_id.distance < difference_x) break;
+
 			float difference_y = input_units.at(IDs.at(i)).position.y - dir_id.position.y;
 			
 			float norm = dir_id.direction.x * difference_x + dir_id.direction.y * difference_y;
@@ -76,6 +73,7 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 
 			float dist = difference_x * difference_x + difference_y * difference_y;
 			if (dist > distance2) continue;
+
 			if (powf(norm, 2.0) / dist < angle) continue;
 
 			++count;
@@ -98,10 +96,39 @@ void Task::checkVisible(const std::vector<unit>& input_units, std::vector<int>& 
 				check_the_visibility_fields(i);
 			}
 		}
-	};
+	}; 
 
-	std::sort(IDs.begin(), IDs.end(), [&](const int& left, const int& right) {
-		return input_units.at(left).position.x < input_units.at(right).position.x;
-		});
+	if (IDs.size() >= 4) {
+		std::thread thr_1([&]() {
+			std::sort(IDs.begin(), IDs.begin() + (IDs.size() / 4), [&](const int& left, const int& right) {
+				return input_units.at(left).position.x < input_units.at(right).position.x;
+				});
+			});
+		std::thread thr_2([&]() {
+			std::sort(IDs.begin() + (IDs.size() / 4 + 1), IDs.begin() + (IDs.size() / 2), [&](const int& left, const int& right) {
+				return input_units.at(left).position.x < input_units.at(right).position.x;
+				});
+			});
+		std::thread thr_3([&]() {
+			std::sort(IDs.begin() + (IDs.size() / 2 + 1), IDs.begin() + (IDs.size() / 2 + IDs.size() / 4), [&](const int& left, const int& right) {
+				return input_units.at(left).position.x < input_units.at(right).position.x;
+				});
+			});
+		std::sort(IDs.begin() + (IDs.size() / 2 + IDs.size() / 4 + 1), IDs.end(), [&](const int& left, const int& right) {
+			return input_units.at(left).position.x < input_units.at(right).position.x;
+			});
+		thr_1.join();
+		thr_2.join();
+		thr_3.join();
+		
+		std::sort(IDs.begin(), IDs.end(), [&](const int& left, const int& right) {
+			return input_units.at(left).position.x < input_units.at(right).position.x;
+			});
+	}
+	else {
+		std::sort(IDs.begin(), IDs.end(), [&](const int& left, const int& right) {
+			return input_units.at(left).position.x < input_units.at(right).position.x;
+			});
+	}
 	running_parallel_computing(0, input_units.size() - 1, 2);
 }
